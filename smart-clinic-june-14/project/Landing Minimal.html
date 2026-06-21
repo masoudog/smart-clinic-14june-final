@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>کلینیک روان درمانی پوریا</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Estedad:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-0:        oklch(0.975 0.008 90);
+    --bg-1:        oklch(0.955 0.014 95);
+    --ink:         oklch(0.22 0.012 70);
+    --ink-soft:    oklch(0.46 0.010 70);
+    --ink-faint:   oklch(0.68 0.008 70);
+    --line:        oklch(0.88 0.010 80);
+    --line-soft:   oklch(0.92 0.008 80);
+    --accent:      oklch(0.55 0.05 175);
+    --accent-soft: oklch(0.92 0.025 175);
+    --orb-a:       oklch(0.86 0.045 165);
+    --orb-b:       oklch(0.88 0.040 50);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Estedad', system-ui, -apple-system, sans-serif;
+    color: var(--ink);
+    background: var(--bg-0);
+    font-feature-settings: "ss01", "ss02";
+  }
+
+  body {
+    position: relative;
+    /* layered cinematic wash — slightly sharper than before */
+    background:
+      radial-gradient(38% 32% at 16% 18%, oklch(0.94 0.05 60 / 0.78), transparent 70%),
+      radial-gradient(34% 30% at 86% 84%, oklch(0.92 0.055 175 / 0.65), transparent 72%),
+      radial-gradient(22% 18% at 72% 14%, oklch(0.96 0.04 110 / 0.5), transparent 75%),
+      radial-gradient(80% 80% at 50% 50%, transparent 55%, oklch(0.78 0.02 70 / 0.18) 100%),
+      var(--bg-0);
+  }
+
+  /* soft floating orbs — more defined, still calm */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(56px);
+    pointer-events: none;
+    opacity: 0.78;
+    z-index: 0;
+    animation: drift 24s ease-in-out infinite alternate;
+  }
+  .orb.a {
+    width: 520px; height: 520px;
+    top: -140px; right: -120px;
+    background: var(--orb-a);
+  }
+  .orb.b {
+    width: 460px; height: 460px;
+    bottom: -160px; left: -110px;
+    background: var(--orb-b);
+    animation-delay: -8s;
+  }
+  .orb.c {
+    width: 260px; height: 260px;
+    top: 38%; left: 8%;
+    background: oklch(0.93 0.04 120);
+    opacity: 0.45;
+    filter: blur(70px);
+    animation-delay: -14s;
+  }
+  @keyframes drift {
+    0%   { transform: translate(0, 0)       scale(1);    }
+    100% { transform: translate(-36px, 24px) scale(1.08); }
+  }
+
+  /* subtle grain — a touch more present */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.045;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  /* hairline horizon — grounds the composition */
+  body::after {
+    content: "";
+    position: fixed;
+    left: 8%; right: 8%;
+    bottom: 7%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, oklch(0.6 0.01 70 / 0.18), transparent);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ============ NAV ============ */
+  header.nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 26px 44px;
+    font-size: 13px;
+    letter-spacing: 0.01em;
+  }
+  .clinic {
+    color: var(--ink);
+    font-weight: 500;
+    font-size: 14px;
+    letter-spacing: 0.005em;
+  }
+  .clinic .dot {
+    display: inline-block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-inline-end: 10px;
+    vertical-align: middle;
+    transform: translateY(-2px);
+  }
+  nav.links {
+    display: flex;
+    gap: 28px;
+  }
+  nav.links a {
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 400;
+    transition: color 0.2s;
+    cursor: pointer;
+  }
+  nav.links a:hover { color: var(--ink); }
+
+  /* ============ MAIN ============ */
+  main {
+    position: relative;
+    z-index: 2;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 100px 44px 80px;
+    gap: 0;
+  }
+
+  .eyebrow {
+    text-align: center;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    color: var(--ink-faint);
+    margin-top: 28px;
+    text-transform: none;
+    order: 2;
+  }
+  .eyebrow .line {
+    display: inline-block;
+    width: 28px; height: 1px;
+    background: var(--ink-faint);
+    vertical-align: middle;
+    margin: 0 12px;
+    opacity: 0.5;
+  }
+
+  .headline {
+    order: 1;
+    text-align: center;
+    font-weight: 200;
+    font-size: clamp(44px, 6.5vw, 92px);
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    margin: 0;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+  .headline em {
+    font-style: normal;
+    font-weight: 400;
+    background: linear-gradient(180deg, var(--ink), var(--accent) 130%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    position: relative;
+  }
+  .headline em::after {
+    content: "";
+    position: absolute;
+    left: 6%; right: 6%;
+    bottom: -0.12em;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0.35;
+  }
+
+  /* ============ BOOKING — floating, conversational ============ */
+  .booking {
+    order: 3;
+    flex-shrink: 0;
+    margin-top: 48px;
+    width: min(640px, 92vw);
+    background: oklch(1 0 0 / 0.55);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    border: 1px solid oklch(1 0 0 / 0.7);
+    box-shadow:
+      0 1px 0 oklch(1 0 0 / 0.8) inset,
+      0 24px 60px -24px oklch(0.4 0.02 80 / 0.18),
+      0 4px 14px -6px oklch(0.4 0.02 80 / 0.08);
+    border-radius: 28px;
+    padding: 24px 28px 22px;
+    position: relative;
+    overflow: hidden;
+    transition: height 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .back {
+    position: absolute;
+    top: 16px; left: 18px;
+    appearance: none;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--ink-faint);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .back.show { opacity: 1; pointer-events: auto; }
+  .back:hover { color: var(--ink-soft); }
+
+  .stage {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    opacity: 1;
+    transition: opacity 0.32s ease, transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .stage.leaving {
+    opacity: 0;
+    transform: translateY(-6px);
+    position: absolute;
+    inset: 24px 28px 22px;
+    pointer-events: none;
+  }
+  .stage.entering {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  .ask {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    color: var(--ink);
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.6;
+  }
+  .ask .who {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    font-weight: 500;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .ask.done .who {
+    background: oklch(0.93 0.04 165);
+    color: oklch(0.42 0.07 165);
+  }
+  .ask .text { flex: 1; text-wrap: pretty; }
+  .ask .text small {
+    display: block;
+    color: var(--ink-faint);
+    font-size: 12.5px;
+    margin-top: 4px;
+  }
+
+  .options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-inline-start: 40px;
+  }
+  .chip {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: oklch(1 0 0 / 0.6);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 400;
+    padding: 10px 18px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.22s ease;
+    letter-spacing: 0.002em;
+  }
+  .chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateY(-1px);
+    background: oklch(1 0 0 / 0.85);
+  }
+  .chip.urgent {
+    border-color: oklch(0.85 0.05 40);
+    color: oklch(0.5 0.10 40);
+  }
+  .chip.urgent:hover {
+    border-color: oklch(0.62 0.12 40);
+    color: oklch(0.5 0.13 40);
+  }
+
+  .alt {
+    margin-inline-start: 40px;
+    align-self: flex-start;
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--ink-faint);
+    font-family: inherit;
+    font-size: 12.5px;
+    cursor: pointer;
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--line);
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .alt:hover { color: var(--ink-soft); border-bottom-color: var(--ink-faint); }
+
+  .fields {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-inline-start: 40px;
+  }
+  .field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--line);
+    padding: 6px 0;
+    transition: border-color 0.2s;
+  }
+  .field:focus-within { border-bottom-color: var(--accent); }
+  .field label {
+    font-size: 12px;
+    color: var(--ink-faint);
+    flex-shrink: 0;
+  }
+  .field input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 14.5px;
+    color: var(--ink);
+    outline: none;
+    padding: 4px 0;
+    text-align: right;
+  }
+  .field input::placeholder { color: var(--ink-faint); }
+
+  .cta-inline {
+    margin-inline-start: 40px;
+    align-self: flex-start;
+    appearance: none;
+    border: none;
+    background: var(--ink);
+    color: oklch(0.97 0.005 90);
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    padding: 12px 26px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 8px 20px -10px oklch(0.3 0.02 80 / 0.28);
+  }
+  .cta-inline:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px -10px oklch(0.3 0.02 80 / 0.38);
+  }
+  .cta-inline.calm {
+    background: var(--accent);
+  }
+  .cta-inline:disabled {
+    opacity: 0.7;
+    cursor: default;
+    transform: none;
+  }
+
+  /* ============ soft reassurance line ============ */
+  .reassure {
+    order: 4;
+    margin-top: 22px;
+    text-align: center;
+    font-size: 12.5px;
+    line-height: 1.85;
+    color: var(--ink-faint);
+    letter-spacing: 0.005em;
+    max-width: 540px;
+    text-wrap: balance;
+  }
+
+  @media (max-width: 720px) {
+    header.nav { padding: 18px 22px; }
+    nav.links { gap: 18px; }
+    main { padding: 90px 22px 50px; }
+    .booking { padding: 20px 20px 18px; border-radius: 22px; }
+    .options, .alt, .fields, .cta-inline { padding-inline-start: 0; margin-inline-start: 0; }
+  }
+  @media (max-height: 760px) {
+    main { padding: 80px 44px 60px; }
+    .headline { font-size: clamp(38px, 5vw, 64px); }
+    .booking { margin-top: 28px; }
+    .eyebrow { margin-top: 18px; }
+  }
+  @media (max-height: 680px) {
+    main { padding: 70px 44px 50px; }
+    .headline { font-size: clamp(34px, 4.4vw, 54px); }
+    .booking { margin-top: 20px; padding: 18px 22px 16px; }
+    .reassure { margin-top: 10px; }
+    .eyebrow { margin-top: 12px; font-size: 11px; }
+  }
+  @media (max-height: 580px) {
+    main { padding: 60px 44px 40px; }
+    .headline { font-size: clamp(28px, 3.8vw, 44px); }
+    .eyebrow { display: none; }
+    .booking { margin-top: 14px; }
+    .footer-note { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="orb a"></div>
+<div class="orb b"></div>
+<div class="orb c"></div>
+
+<header class="nav">
+  <div class="clinic"><span class="dot"></span>کلینیک روان درمانی پوریا</div>
+  <nav class="links">
+    <a>درباره</a>
+    <a>تماس</a>
+  </nav>
+</header>
+
+<main>
+  <h1 class="headline">
+    آرامش،<br/>
+    با یک <em>گفت‌وگو</em> آغاز می‌شود.
+  </h1>
+
+  <div class="eyebrow">
+    <span class="line"></span>
+    یک قدم کوچک، در زمانی که آماده‌ای
+    <span class="line"></span>
+  </div>
+
+  <div class="booking" id="booking">
+    <button class="back" id="back" aria-label="بازگشت">↻ بازگشت</button>
+    <div class="stage" id="stage"></div>
+  </div>
+
+  <div class="reassure">
+    فضایی آرام، اخلاق‌مدار و بدون قضاوت؛<br/>
+    برای همراهی با اضطراب، رابطه‌ها،<br/>
+    و سؤال‌هایی که همیشه جواب ساده‌ای ندارند.
+  </div>
+</main>
+
+<script>
+  const booking = document.getElementById('booking');
+  const stageEl = document.getElementById('stage');
+  const backBtn = document.getElementById('back');
+
+  // -- slot data per choice. "urgent" intentionally returns empty -> waitlist.
+  const SLOTS = {
+    today: ['۱۸:۰۰ امروز', '۱۹:۳۰ امروز', 'فردا صبح ۱۰:۰۰'],
+    week:  ['چهارشنبه ۱۱:۰۰', 'پنج‌شنبه ۱۶:۳۰', 'جمعه ۱۰:۰۰'],
+    urgent: [],
+  };
+
+  let history = [];
+
+  function render(html, opts = {}) {
+    const current = stageEl;
+    // measure old height
+    const fromH = booking.offsetHeight;
+
+    // build new stage offscreen to measure
+    const fresh = document.createElement('div');
+    fresh.className = 'stage entering';
+    fresh.innerHTML = html;
+
+    // crossfade: animate old out, swap, animate new in
+    current.classList.add('leaving');
+    booking.appendChild(fresh);
+
+    // measure target height (with new stage as the laying-out child)
+    // Temporarily make leaving stage truly out of flow already (CSS handles that),
+    // so booking sizes to fresh.
+    requestAnimationFrame(() => {
+      const toH = booking.scrollHeight;
+      booking.style.height = fromH + 'px';
+      // force reflow
+      void booking.offsetHeight;
+      booking.style.height = toH + 'px';
+
+      requestAnimationFrame(() => {
+        fresh.classList.remove('entering');
+      });
+
+      setTimeout(() => {
+        current.remove();
+        fresh.id = 'stage';
+        // release fixed height so it can grow with typing etc.
+        booking.style.height = '';
+      }, 450);
+    });
+
+    // re-point stageEl to the new one for next render
+    setTimeout(() => { window.stageEl = fresh; }, 0);
+    // also reassign immediately for next call (closure)
+    Object.defineProperty(window, 'stageEl', { value: fresh, configurable: true });
+  }
+
+  // Simpler reliable approach: just swap innerHTML with a quick fade.
+  function setStage(html, push = true) {
+    if (push) history.push(stageEl.innerHTML);
+    backBtn.classList.toggle('show', history.length > 0);
+
+    const fromH = booking.offsetHeight;
+    stageEl.style.opacity = '0';
+    stageEl.style.transform = 'translateY(-4px)';
+
+    setTimeout(() => {
+      stageEl.innerHTML = html;
+      // measure new
+      booking.style.height = 'auto';
+      const toH = booking.scrollHeight;
+      booking.style.height = fromH + 'px';
+      void booking.offsetHeight;
+      booking.style.height = toH + 'px';
+
+      stageEl.style.transform = 'translateY(6px)';
+      requestAnimationFrame(() => {
+        stageEl.style.opacity = '1';
+        stageEl.style.transform = 'translateY(0)';
+      });
+
+      bind();
+
+      setTimeout(() => { booking.style.height = ''; }, 480);
+    }, 220);
+  }
+
+  function persianTime(s) { return s; }
+
+  function stageWhen() {
+    return `
+      <div class="ask">
+        <div class="who">پ</div>
+        <div class="text">چه زمانی برای گفت‌وگو راحت‌تر هستید؟</div>
+      </div>
+      <div class="options">
+        <button class="chip" data-pick="today">امروز</button>
+        <button class="chip" data-pick="week">این هفته</button>
+        <button class="chip urgent" data-pick="urgent">نیاز فوری دارم</button>
+      </div>
+    `;
+  }
+
+  function stageSlots(pick) {
+    const slots = SLOTS[pick];
+    const heading = pick === 'today'
+      ? 'این زمان‌ها امروز و فردا خالی‌اند — کدام مناسب‌تر است؟'
+      : 'این زمان‌ها در روزهای پیشِ‌رو آزاد است.';
+    const pills = slots.map(s => `<button class="chip" data-slot="${s}">${s}</button>`).join('');
+    return `
+      <div class="ask">
+        <div class="who">پ</div>
+        <div class="text">${heading}</div>
+      </div>
+      <div class="options">${pills}</div>
+      <button class="alt" data-none>هیچ‌کدام مناسب نیست</button>
+    `;
+  }
+
+  // shared flow context — carries data between stages
+  let ctx = {};
+
+  function stageMode(slot) {
+    ctx.slot = slot;
+    return `
+      <div class="ask">
+        <div class="who">پ</div>
+        <div class="text">جلسه را آنلاین ترجیح می‌دهید یا حضوری در مطب؟<small>هر دو، خصوصی و کاملاً محرمانه.</small></div>
+      </div>
+      <div class="options">
+        <button class="chip" data-mode="online">آنلاین</button>
+        <button class="chip" data-mode="in-person">حضوری در مطب</button>
+      </div>
+    `;
+  }
+
+  function stageContact(opts) {
+    // opts: { slot, mode } for confirmed booking, or { reason: 'urgent' | 'none' } for waitlist
+    ctx = { ...ctx, ...opts };
+    const waitlist = !!opts.reason;
+    let message;
+    if (opts.reason === 'urgent') {
+      message = 'متوجه‌ام، گاهی فوری بودن خودش سنگین است.<br/>در حال حاضر زمان خالی نداریم، اما می‌توانیم<br/>برای هماهنگی با شما تماس بگیریم.';
+    } else if (opts.reason === 'none') {
+      message = 'در حال حاضر زمان خالی موجود نیست،<br/>اما می‌توانیم برای هماهنگی با شما تماس بگیریم.';
+    } else {
+      const modeText = opts.mode === 'online' ? 'آنلاین' : 'حضوری';
+      message = `فقط چند کلمه تا زمانتان (<b>${ctx.slot}</b> — ${modeText}) نگه داشته شود.`;
+    }
+    const small = waitlist
+      ? 'تماس آرام، در ساعتی که خودتان مشخص کنید.'
+      : 'پیامک تأیید به همین شماره ارسال می‌شود.';
+    const ctaLabel = waitlist ? 'ثبت برای تماس آرام' : 'تأیید و نگه‌داشتن زمان';
+    return `
+      <div class="ask">
+        <div class="who">پ</div>
+        <div class="text">${message}<small>${small}</small></div>
+      </div>
+      <div class="fields">
+        <div class="field">
+          <label>نام</label>
+          <input id="wlName" placeholder="چه‌طور صدایتان کنیم" autocomplete="given-name" />
+        </div>
+        <div class="field">
+          <label>تماس</label>
+          <input id="wlPhone" placeholder="شماره‌ای که در دسترس است" inputmode="tel" autocomplete="tel" />
+        </div>
+      </div>
+      <button class="cta-inline calm" id="wlSubmit">${ctaLabel}</button>
+    `;
+  }
+
+  function stageDoneTime({ slot, mode, name }) {
+    const greeting = name ? `${name} عزیز، ` : '';
+    const modeText = mode === 'online' ? 'آنلاین' : 'حضوری در مطب';
+    return `
+      <div class="ask done">
+        <div class="who">✓</div>
+        <div class="text">${greeting}زمان <b>${slot}</b> (${modeText}) برایتان نگه داشته شد.<small>پیامک تأیید تا چند دقیقه ارسال می‌شود. هر زمان خواستید، می‌توانید جابه‌جا کنید.</small></div>
+      </div>
+    `;
+  }
+
+  function stageDoneWaitlist(name) {
+    const greeting = name ? `${name} عزیز،<br/>` : '';
+    return `
+      <div class="ask done">
+        <div class="who">✓</div>
+        <div class="text">${greeting}شماره‌تان ثبت شد.<small>طی چند ساعت آینده با شما تماس می‌گیریم — در ساعتی آرام و بدون عجله.</small></div>
+      </div>
+    `;
+  }
+
+  function bind() {
+    stageEl.querySelectorAll('[data-pick]').forEach(b => {
+      b.addEventListener('click', () => {
+        const pick = b.dataset.pick;
+        if (pick === 'urgent' || SLOTS[pick].length === 0) {
+          setStage(stageContact({ reason: 'urgent' }));
+        } else {
+          setStage(stageSlots(pick));
+        }
+      });
+    });
+    stageEl.querySelectorAll('[data-slot]').forEach(b => {
+      b.addEventListener('click', () => {
+        setStage(stageMode(b.dataset.slot));
+      });
+    });
+    stageEl.querySelectorAll('[data-mode]').forEach(b => {
+      b.addEventListener('click', () => {
+        setStage(stageContact({ slot: ctx.slot, mode: b.dataset.mode }));
+      });
+    });
+    const none = stageEl.querySelector('[data-none]');
+    if (none) none.addEventListener('click', () => setStage(stageContact({ reason: 'none' })));
+    const submit = stageEl.querySelector('#wlSubmit');
+    if (submit) {
+      submit.addEventListener('click', () => {
+        const name = stageEl.querySelector('#wlName').value.trim();
+        const phone = stageEl.querySelector('#wlPhone').value.trim();
+        if (!phone) {
+          const f = stageEl.querySelector('#wlPhone').closest('.field');
+          f.animate(
+            [{ transform: 'translateX(0)' }, { transform: 'translateX(-5px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }],
+            { duration: 320, easing: 'ease-out' }
+          );
+          stageEl.querySelector('#wlPhone').focus({ preventScroll: true });
+          return;
+        }
+        if (ctx.reason) {
+          setStage(stageDoneWaitlist(name));
+        } else {
+          setStage(stageDoneTime({ slot: ctx.slot, mode: ctx.mode, name }));
+        }
+        history = []; backBtn.classList.remove('show');
+        ctx = {};
+      });
+    }
+  }
+
+  backBtn.addEventListener('click', () => {
+    if (!history.length) return;
+    const prev = history.pop();
+    backBtn.classList.toggle('show', history.length > 0);
+    const fromH = booking.offsetHeight;
+    stageEl.style.opacity = '0';
+    stageEl.style.transform = 'translateY(4px)';
+    setTimeout(() => {
+      stageEl.innerHTML = prev;
+      booking.style.height = 'auto';
+      const toH = booking.scrollHeight;
+      booking.style.height = fromH + 'px';
+      void booking.offsetHeight;
+      booking.style.height = toH + 'px';
+      stageEl.style.transform = 'translateY(-6px)';
+      requestAnimationFrame(() => {
+        stageEl.style.opacity = '1';
+        stageEl.style.transform = 'translateY(0)';
+      });
+      bind();
+      setTimeout(() => { booking.style.height = ''; }, 480);
+    }, 220);
+  });
+
+  // init
+  stageEl.innerHTML = stageWhen();
+  bind();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+
+# Build
+build/
+dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# AWS SAM
+.aws-sam/
+packaged.yaml
+template-deploy.yaml
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Lambda zips (generated during deploy)
+lambda-*.zip
+
+# Misc
+deploy-log.txt
+deploy-output.log
+npm-install.log
+npm-build.log
+s3-sync.log

@@ -1,0 +1,6 @@
+{
+  "name": "clinic-settings-function",
+  "version": "1.0.0",
+  "description": "Smart Clinic Settings API",
+  "main": "index.js"
+}

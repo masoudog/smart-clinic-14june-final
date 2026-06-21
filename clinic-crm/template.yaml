@@ -1,0 +1,491 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Smart Clinic CRM - Serverless Application
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: nodejs18.x
+    Environment:
+      Variables:
+        PATIENTS_TABLE: !Ref PatientsTable
+        EVENTS_TABLE: !Ref EventsTable
+        BOOKINGS_TABLE: !Ref BookingsTable
+        NOTIFICATIONS_TABLE: !Ref NotificationsTable
+        SETTINGS_TABLE: !Ref SettingsTable
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+
+Resources:
+  # === DynamoDB Tables ===
+  PatientsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'clinic-patients-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: clinicId
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: clinicId
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  EventsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'clinic-events-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: clinicId
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: day
+          AttributeType: N
+      KeySchema:
+        - AttributeName: clinicId
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: dayIndex
+          KeySchema:
+            - AttributeName: clinicId
+              KeyType: HASH
+            - AttributeName: day
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  BookingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'clinic-bookings-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: clinicId
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: clinicId
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  NotificationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'clinic-notifications-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: clinicId
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: clinicId
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  SettingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'clinic-settings-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: clinicId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: clinicId
+          KeyType: HASH
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # === Cognito User Pool ===
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub 'clinic-staff-${Environment}'
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: false
+        - Name: name
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+        - Name: phone_number
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+      MfaConfiguration: OPTIONAL
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub 'clinic-web-${Environment}'
+      UserPoolId: !Ref CognitoUserPool
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      AllowedOAuthFlowsUserPoolClient: true
+      SupportedIdentityProviders:
+        - COGNITO
+      CallbackURLs:
+        - 'http://localhost:3000/callback'
+        - 'http://127.0.0.1:3000/callback'
+      LogoutURLs:
+        - 'http://localhost:3000/logout'
+        - 'http://127.0.0.1:3000/logout'
+
+  # === API Gateway ===
+  ClinicApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Environment
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt CognitoUserPool.Arn
+      Cors:
+        AllowMethods: "'GET,POST,PATCH,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
+
+  # === Lambda Functions ===
+  PatientsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'clinic-patients-${Environment}'
+      CodeUri: lambda/patients/
+      Handler: index.handler
+      Events:
+        GetPatients:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /patients
+            Method: GET
+        GetPatient:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /patients/{patientId}
+            Method: GET
+        CreatePatient:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /patients
+            Method: POST
+        UpdatePatient:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /patients/{patientId}
+            Method: PATCH
+        DeletePatient:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /patients/{patientId}
+            Method: DELETE
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PatientsTable
+
+  EventsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'clinic-events-${Environment}'
+      CodeUri: lambda/events/
+      Handler: index.handler
+      Events:
+        GetEvents:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /events
+            Method: GET
+        CreateEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /events
+            Method: POST
+        UpdateEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /events/{eventId}
+            Method: PATCH
+        DeleteEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /events/{eventId}
+            Method: DELETE
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EventsTable
+
+  BookingsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'clinic-bookings-${Environment}'
+      CodeUri: lambda/bookings/
+      Handler: index.handler
+      Events:
+        GetBookings:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /bookings
+            Method: GET
+        CreateBooking:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /bookings
+            Method: POST
+        UpdateBooking:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /bookings/{bookingId}
+            Method: PATCH
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BookingsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref NotificationsTable
+
+  NotificationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'clinic-notifications-${Environment}'
+      CodeUri: lambda/notifications/
+      Handler: index.handler
+      Events:
+        GetNotifications:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /notifications
+            Method: GET
+        MarkRead:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /notifications/{notificationId}/read
+            Method: PATCH
+        MarkAllRead:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /notifications/mark-all-read
+            Method: PATCH
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref NotificationsTable
+
+  SettingsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'clinic-settings-${Environment}'
+      CodeUri: lambda/settings/
+      Handler: index.handler
+      Events:
+        GetSettings:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /settings
+            Method: GET
+        UpdateSettings:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicApi
+            Path: /settings
+            Method: PATCH
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SettingsTable
+
+  # === S3 Bucket for Frontend ===
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'clinic-frontend-${AWS::AccountId}-${Environment}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyText:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${FrontendBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}'
+
+  # === CloudFront Distribution ===
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${CloudFrontOAI}'
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          Compress: true
+          DefaultTTL: 86400
+          MaxTTL: 31536000
+        CacheBehaviors:
+          - PathPattern: /api/*
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - POST
+              - PATCH
+              - DELETE
+            TargetOriginId: ApiOrigin
+            ViewerProtocolPolicy: https-only
+            ForwardedValues:
+              QueryString: true
+              Headers:
+                - Authorization
+              Cookies:
+                Forward: all
+        Logging:
+          Bucket: !GetAtt LoggingBucket.DomainName
+          IncludeCookies: true
+
+  CloudFrontOAI:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub 'OAI for clinic-frontend-${Environment}'
+
+  LoggingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'clinic-logs-${AWS::AccountId}-${Environment}'
+      AccessControl: LogDeliveryWrite
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+Outputs:
+  ClinicApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${ClinicApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}'
+
+  CognitoUserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref CognitoUserPool
+
+  CognitoClientId:
+    Description: Cognito Client ID
+    Value: !Ref CognitoUserPoolClient
+
+  FrontendBucketName:
+    Description: S3 bucket for frontend hosting
+    Value: !Ref FrontendBucket
+
+  CloudFrontDomainName:
+    Description: CloudFront distribution domain name
+    Value: !GetAtt CloudFrontDistribution.DomainName
+
+  PatientsTableName:
+    Description: DynamoDB Patients table name
+    Value: !Ref PatientsTable
+
+  EventsTableName:
+    Description: DynamoDB Events table name
+    Value: !Ref EventsTable
+
+  BookingsTableName:
+    Description: DynamoDB Bookings table name
+    Value: !Ref BookingsTable

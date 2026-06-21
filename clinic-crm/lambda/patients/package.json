@@ -1,0 +1,6 @@
+{
+  "name": "clinic-patients-function",
+  "version": "1.0.0",
+  "description": "Smart Clinic Patients API",
+  "main": "index.js"
+}

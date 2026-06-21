@@ -1,0 +1,6 @@
+{
+  "name": "clinic-notifications-function",
+  "version": "1.0.0",
+  "description": "Smart Clinic Notifications API",
+  "main": "index.js"
+}

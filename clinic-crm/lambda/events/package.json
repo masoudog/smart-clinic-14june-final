@@ -1,0 +1,6 @@
+{
+  "name": "clinic-events-function",
+  "version": "1.0.0",
+  "description": "Smart Clinic Events API",
+  "main": "index.js"
+}

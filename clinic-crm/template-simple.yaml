@@ -1,0 +1,165 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Smart Clinic CRM - Minimal Deployment
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+
+Resources:
+  # DynamoDB Tables
+  PatientsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'clinic-patients-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: clinicId
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: clinicId
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE
+
+  EventsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'clinic-events-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: clinicId
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: clinicId
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE
+
+  BookingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'clinic-bookings-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: clinicId
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: clinicId
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE
+
+  NotificationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'clinic-notifications-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: clinicId
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: clinicId
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  SettingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'clinic-settings-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: clinicId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: clinicId
+          KeyType: HASH
+
+  # S3 Bucket for Frontend
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'clinic-frontend-${AWS::AccountId}-${Environment}'
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # CloudFront Distribution
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${CloudFrontOAI}'
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          ForwardedValues:
+            QueryString: false
+          Compress: true
+
+  CloudFrontOAI:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub 'OAI for clinic-${Environment}'
+
+Outputs:
+  PatientsTableName:
+    Description: Patients DynamoDB Table
+    Value: !Ref PatientsTable
+
+  EventsTableName:
+    Description: Events DynamoDB Table
+    Value: !Ref EventsTable
+
+  BookingsTableName:
+    Description: Bookings DynamoDB Table
+    Value: !Ref BookingsTable
+
+  NotificationsTableName:
+    Description: Notifications DynamoDB Table
+    Value: !Ref NotificationsTable
+
+  SettingsTableName:
+    Description: Settings DynamoDB Table
+    Value: !Ref SettingsTable
+
+  FrontendBucketName:
+    Description: Frontend S3 Bucket
+    Value: !Ref FrontendBucket
+
+  CloudFrontDomainName:
+    Description: CloudFront Distribution Domain
+    Value: !GetAtt CloudFrontDistribution.DomainName
+
+  CloudFrontDistributionId:
+    Description: CloudFront Distribution ID
+    Value: !Ref CloudFrontDistribution

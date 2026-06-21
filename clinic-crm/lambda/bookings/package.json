@@ -1,0 +1,6 @@
+{
+  "name": "clinic-bookings-function",
+  "version": "1.0.0",
+  "description": "Smart Clinic Bookings API",
+  "main": "index.js"
+}
