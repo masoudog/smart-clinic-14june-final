@@ -64,6 +64,24 @@ npm run dev
 
 ### Deploy to AWS
 
+**Automated CI/CD Pipeline (Recommended)**
+
+Deploy with AWS CodePipeline for automated builds and deployments:
+
+```bash
+cd infrastructure
+.\setup-pipeline.ps1 -Environment dev -GitHubToken "your_token_here"
+```
+
+Then push to GitHub to trigger automatic deployment:
+```bash
+git push origin main
+```
+
+See [infrastructure/CI_CD_SETUP.md](./infrastructure/CI_CD_SETUP.md) for complete CI/CD guide.
+
+**Manual Deployment**
+
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete instructions.
 
 Quick deploy:

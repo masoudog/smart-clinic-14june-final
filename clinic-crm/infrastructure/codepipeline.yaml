@@ -1,0 +1,539 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Smart Clinic CI/CD Pipeline - AWS CodePipeline + CodeConnections
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Deployment environment
+
+  FullRepositoryId:
+    Type: String
+    Default: masoudog/smart-clinic-14june-final
+    Description: "GitHub repository in owner/repo format (e.g. myuser/my-repo)"
+
+  GitHubBranch:
+    Type: String
+    Default: main
+    Description: GitHub branch to deploy from
+
+  ConnectionArn:
+    Type: String
+    Default: arn:aws:codeconnections:us-east-1:694364706816:connection/647fb103-e682-40dc-9d5f-4f709ddf7a23
+    Description: ARN of the AWS CodeConnections GitHub connection
+
+Resources:
+
+  # ============================================================
+  # S3 Bucket - Pipeline Artifact Store
+  # ============================================================
+  ArtifactStoreBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'clinic-pipeline-artifacts-${AWS::AccountId}-${Environment}'
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldArtifacts
+            Status: Enabled
+            ExpirationInDays: 30
+            NoncurrentVersionExpirationInDays: 7
+
+  # ============================================================
+  # IAM Role - CodeBuild
+  # ============================================================
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'clinic-codebuild-role-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodeBuildPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # CloudWatch Logs
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*'
+
+              # Artifact S3 bucket
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketAcl
+                  - s3:GetBucketLocation
+                Resource:
+                  - !GetAtt ArtifactStoreBucket.Arn
+                  - !Sub '${ArtifactStoreBucket.Arn}/*'
+
+              # SAM package uploads Lambda zips here
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: !Sub '${ArtifactStoreBucket.Arn}/*'
+
+              # CloudFormation stack read (for deploy-backend.sh)
+              - Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/clinic-crm-*'
+
+              # Frontend S3 bucket
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::clinic-frontend-${AWS::AccountId}-${Environment}'
+                  - !Sub 'arn:aws:s3:::clinic-frontend-${AWS::AccountId}-${Environment}/*'
+
+              # CloudFront invalidation
+              - Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                  - cloudfront:GetDistribution
+                  - cloudfront:ListDistributions
+                Resource: '*'
+
+              # IAM PassRole so SAM can package with CFN execution role
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !GetAtt CloudFormationRole.Arn
+
+  # ============================================================
+  # IAM Role - CloudFormation (deploys the SAM stack)
+  # ============================================================
+  CloudFormationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'clinic-cloudformation-role-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+
+  # ============================================================
+  # IAM Role - CodePipeline
+  # ============================================================
+  CodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'clinic-codepipeline-role-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodePipelinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # Artifacts
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                  - s3:GetBucketAcl
+                  - s3:GetBucketLocation
+                Resource:
+                  - !GetAtt ArtifactStoreBucket.Arn
+                  - !Sub '${ArtifactStoreBucket.Arn}/*'
+
+              # CodeConnections (GitHub)
+              - Effect: Allow
+                Action:
+                  - codestar-connections:UseConnection
+                  - codeconnections:UseConnection
+                Resource: !Ref ConnectionArn
+
+              # CodeBuild
+              - Effect: Allow
+                Action:
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuildBatches
+                  - codebuild:StartBuildBatch
+                Resource: !GetAtt CodeBuildProject.Arn
+
+              # CloudFormation
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:SetStackPolicy
+                  - cloudformation:ValidateTemplate
+                Resource:
+                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/clinic-crm-*'
+                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31'
+
+              # Lambda invoke for deploy-frontend stage
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                  - lambda:ListFunctions
+                Resource: !GetAtt DeployFrontendFunction.Arn
+
+              # IAM PassRole to CloudFormation
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !GetAtt CloudFormationRole.Arn
+
+  # ============================================================
+  # CodeBuild Project
+  # ============================================================
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub 'clinic-crm-build-${Environment}'
+      Description: Build Smart Clinic frontend (Next.js) and backend (SAM)
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: S3
+        Location: !Sub '${ArtifactStoreBucket}/cache'
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
+        Type: LINUX_CONTAINER
+        EnvironmentVariables:
+          - Name: ENVIRONMENT
+            Value: !Ref Environment
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AWS::AccountId
+          - Name: ARTIFACT_BUCKET
+            Value: !Ref ArtifactStoreBucket
+          - Name: FRONTEND_BUCKET
+            Value: !Sub 'clinic-frontend-${AWS::AccountId}-${Environment}'
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: clinic-crm/buildspec.yml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: !Sub '/aws/codebuild/clinic-crm-${Environment}'
+          StreamName: build
+
+  # ============================================================
+  # CodePipeline (4 stages)
+  # ============================================================
+  ClinicPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub 'clinic-crm-pipeline-${Environment}'
+      RoleArn: !GetAtt CodePipelineRole.Arn
+      PipelineType: V2
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactStoreBucket
+      Stages:
+
+        # ── Stage 1: Source (GitHub via CodeConnections) ──────────
+        - Name: Source
+          Actions:
+            - Name: GitHubSource
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: '1'
+              Configuration:
+                ConnectionArn: !Ref ConnectionArn
+                FullRepositoryId: !Ref FullRepositoryId
+                BranchName: !Ref GitHubBranch
+                OutputArtifactFormat: CODE_ZIP
+                DetectChanges: true
+              OutputArtifacts:
+                - Name: SourceOutput
+              RunOrder: 1
+
+        # ── Stage 2: Build (CodeBuild) ────────────────────────────
+        - Name: Build
+          Actions:
+            - Name: BuildAndPackage
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: SourceOutput
+              OutputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+
+        # ── Stage 3: Deploy Backend (CloudFormation SAM) ──────────
+        - Name: DeployBackend
+          Actions:
+            - Name: CreateChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                StackName: !Sub 'clinic-crm-${Environment}'
+                ChangeSetName: !Sub 'clinic-crm-changeset-${Environment}'
+                TemplatePath: 'BuildOutput::clinic-crm/packaged.yaml'
+                Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                ParameterOverrides: !Sub '{"Environment": "${Environment}"}'
+                RoleArn: !GetAtt CloudFormationRole.Arn
+              InputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+
+            - Name: ExecuteChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                StackName: !Sub 'clinic-crm-${Environment}'
+                ChangeSetName: !Sub 'clinic-crm-changeset-${Environment}'
+              RunOrder: 2
+
+        # ── Stage 4: Deploy Frontend (S3 + CloudFront) ───────────
+        - Name: DeployFrontend
+          Actions:
+            - Name: SyncToS3
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: '1'
+              Configuration:
+                FunctionName: !Ref DeployFrontendFunction
+              InputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+
+  # ============================================================
+  # Lambda Function - Deploy Frontend
+  # (S3 sync + CloudFront invalidation triggered by CodePipeline)
+  # ============================================================
+  DeployFrontendFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'clinic-deploy-frontend-${Environment}'
+      Description: Syncs Next.js static export to S3 and invalidates CloudFront
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt DeployFrontendLambdaRole.Arn
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          FRONTEND_BUCKET: !Sub 'clinic-frontend-${AWS::AccountId}-${Environment}'
+          APP_STACK_NAME: !Sub 'clinic-crm-${Environment}'
+      Code:
+        ZipFile: |
+          import boto3
+          import os
+          import tempfile
+          import time
+          import zipfile
+
+          s3 = boto3.client('s3')
+          cf = boto3.client('cloudformation')
+          cfn = boto3.client('cloudfront')
+          cp = boto3.client('codepipeline')
+
+          def get_distribution_id():
+              """Read CloudFrontDistributionId directly from the app CloudFormation stack."""
+              stack_name = os.environ['APP_STACK_NAME']
+              resp = cf.describe_stacks(StackName=stack_name)
+              outputs = resp['Stacks'][0].get('Outputs', [])
+              dist_id = next((o['OutputValue'] for o in outputs
+                              if o['OutputKey'] == 'CloudFrontDistributionId'), None)
+              if not dist_id:
+                  raise RuntimeError(f"CloudFrontDistributionId output not found in stack {stack_name}")
+              return dist_id
+
+          def handler(event, context):
+              job_id = event['CodePipeline.job']['id']
+              try:
+                  artifact = event['CodePipeline.job']['data']['inputArtifacts'][0]
+                  loc = artifact['location']['s3Location']
+                  src_bucket = loc['bucketName']
+                  src_key = loc['objectKey']
+                  frontend_bucket = os.environ['FRONTEND_BUCKET']
+
+                  # Download & extract artifact
+                  with tempfile.TemporaryDirectory() as tmpdir:
+                      zip_path = os.path.join(tmpdir, 'artifact.zip')
+                      s3.download_file(src_bucket, src_key, zip_path)
+                      with zipfile.ZipFile(zip_path, 'r') as zf:
+                          zf.extractall(tmpdir)
+
+                      out_dir = os.path.join(tmpdir, 'clinic-crm', 'out')
+                      if not os.path.isdir(out_dir):
+                          raise RuntimeError(f"Expected 'clinic-crm/out/' in artifact but not found")
+
+                      # Upload every file, preserving paths
+                      for root, _, files in os.walk(out_dir):
+                          for fname in files:
+                              local_path = os.path.join(root, fname)
+                              s3_key = os.path.relpath(local_path, out_dir).replace('\\', '/')
+                              ext = os.path.splitext(fname)[1].lower()
+                              if ext in ('.html', '.json', '.xml'):
+                                  cache = 'no-cache, no-store, must-revalidate'
+                              elif ext in ('.js', '.css', '.woff', '.woff2', '.png', '.jpg', '.svg'):
+                                  cache = 'public, max-age=31536000, immutable'
+                              else:
+                                  cache = 'public, max-age=86400'
+                              s3.upload_file(local_path, frontend_bucket, s3_key,
+                                             ExtraArgs={'CacheControl': cache})
+
+                      # Delete files in bucket not in the new build
+                      paginator = s3.get_paginator('list_objects_v2')
+                      new_keys = set()
+                      for root, _, files in os.walk(out_dir):
+                          for fname in files:
+                              new_keys.add(os.path.relpath(
+                                  os.path.join(root, fname), out_dir).replace('\\', '/'))
+                      for page in paginator.paginate(Bucket=frontend_bucket):
+                          for obj in page.get('Contents', []):
+                              if obj['Key'] not in new_keys:
+                                  s3.delete_object(Bucket=frontend_bucket, Key=obj['Key'])
+
+                  # Invalidate CloudFront
+                  dist_id = get_distribution_id()
+                  cfn.create_invalidation(
+                      DistributionId=dist_id,
+                      InvalidationBatch={
+                          'Paths': {'Quantity': 1, 'Items': ['/*']},
+                          'CallerReference': str(int(time.time()))
+                      }
+                  )
+                  print(f"Invalidation triggered for distribution {dist_id}")
+
+                  cp.put_job_success_result(jobId=job_id)
+
+              except Exception as exc:
+                  print(f"Deploy error: {exc}")
+                  cp.put_job_failure_result(
+                      jobId=job_id,
+                      failureDetails={'message': str(exc), 'type': 'JobFailed'}
+                  )
+
+  DeployFrontendLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'clinic-deploy-frontend-role-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DeployFrontendPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # Read artifacts from pipeline bucket
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                Resource: !Sub '${ArtifactStoreBucket.Arn}/*'
+
+              # Write frontend to the app S3 bucket
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::clinic-frontend-${AWS::AccountId}-${Environment}'
+                  - !Sub 'arn:aws:s3:::clinic-frontend-${AWS::AccountId}-${Environment}/*'
+
+              # CloudFront invalidation
+              - Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                  - cloudfront:GetDistribution
+                  - cloudfront:ListDistributions
+                Resource: '*'
+
+              # Look up the CloudFront domain from the app CFN stack
+              - Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/clinic-crm-*'
+
+              # Report back to CodePipeline
+              - Effect: Allow
+                Action:
+                  - codepipeline:PutJobSuccessResult
+                  - codepipeline:PutJobFailureResult
+                Resource: '*'
+
+Outputs:
+  PipelineUrl:
+    Description: CodePipeline console URL
+    Value: !Sub 'https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/clinic-crm-pipeline-${Environment}'
+
+  ArtifactBucket:
+    Description: S3 bucket used to store pipeline artifacts
+    Value: !Ref ArtifactStoreBucket
+
+  CodeBuildProjectName:
+    Description: CodeBuild project name
+    Value: !Ref CodeBuildProject
+
+  DeployFrontendFunction:
+    Description: Lambda function that syncs the frontend
+    Value: !Ref DeployFrontendFunction
