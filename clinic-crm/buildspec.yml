@@ -8,15 +8,11 @@ phases:
   pre_build:
     commands:
       - echo "=== pre_build ==="
-      - pip install -q aws-sam-cli
-      - sam --version
       - cd $CODEBUILD_SRC_DIR/clinic-crm && npm ci --quiet
 
   build:
     commands:
       - cd $CODEBUILD_SRC_DIR/clinic-crm && npm run build
-      - cd $CODEBUILD_SRC_DIR/clinic-crm && npm run sam:build
-      - cd $CODEBUILD_SRC_DIR/clinic-crm && sam package --template-file .aws-sam/build/template.yaml --s3-bucket $ARTIFACT_BUCKET --output-template-file packaged.yaml --region $AWS_REGION
 
   post_build:
     commands:
@@ -24,7 +20,6 @@ phases:
 
 artifacts:
   files:
-    - clinic-crm/packaged.yaml
     - clinic-crm/out/**/*
   base-directory: $CODEBUILD_SRC_DIR
   discard-paths: no
@@ -32,4 +27,3 @@ artifacts:
 cache:
   paths:
     - clinic-crm/node_modules/**/*
-    - /root/.cache/pip/**/*
