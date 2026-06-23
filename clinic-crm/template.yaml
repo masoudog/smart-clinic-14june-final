@@ -377,7 +377,7 @@ Resources:
     Type: AWS::S3::BucketPolicy
     Properties:
       Bucket: !Ref FrontendBucket
-      PolicyText:
+      PolicyDocument:
         Version: '2012-10-17'
         Statement:
           - Effect: Allow
@@ -418,24 +418,6 @@ Resources:
           Compress: true
           DefaultTTL: 86400
           MaxTTL: 31536000
-        CacheBehaviors:
-          - PathPattern: /api/*
-            AllowedMethods:
-              - GET
-              - HEAD
-              - OPTIONS
-              - PUT
-              - POST
-              - PATCH
-              - DELETE
-            TargetOriginId: ApiOrigin
-            ViewerProtocolPolicy: https-only
-            ForwardedValues:
-              QueryString: true
-              Headers:
-                - Authorization
-              Cookies:
-                Forward: all
         Logging:
           Bucket: !GetAtt LoggingBucket.DomainName
           IncludeCookies: true
@@ -450,7 +432,6 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub 'clinic-logs-${AWS::AccountId}-${Environment}'
-      AccessControl: LogDeliveryWrite
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
