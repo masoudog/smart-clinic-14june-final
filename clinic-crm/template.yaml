@@ -418,9 +418,6 @@ Resources:
           Compress: true
           DefaultTTL: 86400
           MaxTTL: 31536000
-        Logging:
-          Bucket: !GetAtt LoggingBucket.DomainName
-          IncludeCookies: true
 
   CloudFrontOAI:
     Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
@@ -428,15 +425,6 @@ Resources:
       CloudFrontOriginAccessIdentityConfig:
         Comment: !Sub 'OAI for clinic-frontend-${Environment}'
 
-  LoggingBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub 'clinic-logs-${AWS::AccountId}-${Environment}'
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
 
 Outputs:
   ClinicApiEndpoint:
