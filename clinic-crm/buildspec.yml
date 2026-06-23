@@ -1,4 +1,6 @@
 version: 0.2
+# CodeBuild carries the working directory between phases.
+# Use $CODEBUILD_SRC_DIR to make every cd absolute and phase-order-safe.
 
 env:
   variables:
@@ -7,25 +9,26 @@ env:
 phases:
   pre_build:
     commands:
-      - echo "Pre-build - Environment=$ENVIRONMENT  Bucket=$ARTIFACT_BUCKET"
+      - echo "Pre-build: ENVIRONMENT=$ENVIRONMENT  ARTIFACT_BUCKET=$ARTIFACT_BUCKET"
       - pip install -q aws-sam-cli
       - sam --version
-      - cd clinic-crm && npm ci --quiet
+      - cd $CODEBUILD_SRC_DIR/clinic-crm && npm ci --quiet
 
   build:
     commands:
-      - cd clinic-crm && npm run build
-      - cd clinic-crm && npm run sam:build
-      - cd clinic-crm && sam package --template-file .aws-sam/build/template.yaml --s3-bucket $ARTIFACT_BUCKET --output-template-file packaged.yaml --region $AWS_REGION
+      - cd $CODEBUILD_SRC_DIR/clinic-crm && npm run build
+      - cd $CODEBUILD_SRC_DIR/clinic-crm && npm run sam:build
+      - cd $CODEBUILD_SRC_DIR/clinic-crm && sam package --template-file .aws-sam/build/template.yaml --s3-bucket $ARTIFACT_BUCKET --output-template-file packaged.yaml --region $AWS_REGION
 
   post_build:
     commands:
-      - echo "Build complete"
+      - echo "Build complete at $(date)"
 
 artifacts:
   files:
     - clinic-crm/packaged.yaml
     - clinic-crm/out/**/*
+  base-directory: $CODEBUILD_SRC_DIR
   discard-paths: no
 
 cache:
