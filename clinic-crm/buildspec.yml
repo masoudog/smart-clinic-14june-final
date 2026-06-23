@@ -1,60 +1,34 @@
 version: 0.2
-# CodeBuild resets the working directory to the repo root at the start of each phase.
-# Commands that need to run from clinic-crm/ must explicitly cd there.
 
 env:
   variables:
     AWS_REGION: us-east-1
-    # ARTIFACT_BUCKET is overridden by the CodeBuild project environment variable
 
 phases:
   pre_build:
     commands:
-      - echo "=== Pre-build: Install dependencies ==="
-      - echo "  Environment  : $ENVIRONMENT"
-      - echo "  Artifact S3  : $ARTIFACT_BUCKET"
-      - echo "  AWS Region   : $AWS_REGION"
-      - echo ""
-      - echo "Installing SAM CLI..."
+      - echo "Pre-build - Environment=$ENVIRONMENT  Bucket=$ARTIFACT_BUCKET"
       - pip install -q aws-sam-cli
       - sam --version
-      - echo ""
-      - echo "Installing Node.js dependencies..."
       - cd clinic-crm && npm ci --quiet
-      - echo "Dependencies installed."
 
   build:
     commands:
-      - echo "=== Build: Next.js frontend ==="
-      - cd clinic-crm
-      - npm run build    # next.config.ts has output:"export" → creates out/ automatically
-      - echo "Frontend export complete."
-      - echo ""
-      - echo "=== Build: SAM backend ==="
-      - npm run sam:build
-      - echo "SAM build complete."
-      - echo ""
-      - echo "=== Package: SAM template for CloudFormation ==="
-      - sam package
-          --template-file .aws-sam/build/template.yaml
-          --s3-bucket "$ARTIFACT_BUCKET"
-          --output-template-file packaged.yaml
-          --region "$AWS_REGION"
-      - echo "SAM template packaged → clinic-crm/packaged.yaml"
+      - cd clinic-crm && npm run build
+      - cd clinic-crm && npm run sam:build
+      - cd clinic-crm && sam package --template-file .aws-sam/build/template.yaml --s3-bucket $ARTIFACT_BUCKET --output-template-file packaged.yaml --region $AWS_REGION
 
   post_build:
     commands:
-      - echo "=== Post-build: done at $(date) ==="
+      - echo "Build complete"
 
 artifacts:
-  # Paths are relative to the repo root (CodeBuild source root).
-  # The build runs inside clinic-crm/, so files land at clinic-crm/<file>.
   files:
-    - clinic-crm/packaged.yaml        # SAM packaged template  → used by CFN deploy stage
-    - clinic-crm/out/**/*             # Next.js static export  → used by Lambda deploy stage
-  discard-paths: no                   # Preserve the full path so pipeline refs work correctly
+    - clinic-crm/packaged.yaml
+    - clinic-crm/out/**/*
+  discard-paths: no
 
 cache:
   paths:
-    - clinic-crm/node_modules/**/*   # npm cache
-    - /root/.cache/pip/**/*          # pip/SAM CLI cache
+    - clinic-crm/node_modules/**/*
+    - /root/.cache/pip/**/*

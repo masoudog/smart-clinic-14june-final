@@ -1,0 +1,5 @@
+# Ensure shell and YAML files always use LF (Unix line endings)
+# so CodeBuild / bash on Linux parse them correctly
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.sh   text eol=lf
