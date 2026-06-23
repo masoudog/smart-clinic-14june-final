@@ -1,6 +1,4 @@
 version: 0.2
-# CodeBuild carries the working directory between phases.
-# Use $CODEBUILD_SRC_DIR to make every cd absolute and phase-order-safe.
 
 env:
   variables:
@@ -9,7 +7,7 @@ env:
 phases:
   pre_build:
     commands:
-      - echo "Pre-build: ENVIRONMENT=$ENVIRONMENT  ARTIFACT_BUCKET=$ARTIFACT_BUCKET"
+      - echo "=== pre_build ==="
       - pip install -q aws-sam-cli
       - sam --version
       - cd $CODEBUILD_SRC_DIR/clinic-crm && npm ci --quiet
@@ -22,7 +20,7 @@ phases:
 
   post_build:
     commands:
-      - echo "Build complete at $(date)"
+      - echo "=== done ==="
 
 artifacts:
   files:
