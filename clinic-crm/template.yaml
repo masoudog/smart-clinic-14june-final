@@ -158,7 +158,7 @@ Resources:
           AttributeDataType: String
           Required: false
           Mutable: true
-      MfaConfiguration: OPTIONAL
+      MfaConfiguration: 'OFF'
       AccountRecoverySetting:
         RecoveryMechanisms:
           - Name: verified_email
