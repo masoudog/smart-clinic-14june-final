@@ -325,6 +325,7 @@ Resources:
       Code:
         ZipFile: |
           import boto3
+          import mimetypes
           import os
           import tempfile
           import time
@@ -366,20 +367,31 @@ Resources:
                       if not os.path.isdir(out_dir):
                           raise RuntimeError(f"Expected 'clinic-crm/out/' in artifact but not found")
 
-                      # Upload every file, preserving paths
+                      # Upload every file with correct Content-Type and Cache-Control
                       for root, _, files in os.walk(out_dir):
                           for fname in files:
                               local_path = os.path.join(root, fname)
                               s3_key = os.path.relpath(local_path, out_dir).replace('\\', '/')
                               ext = os.path.splitext(fname)[1].lower()
-                              if ext in ('.html', '.json', '.xml'):
+
+                              # Cache policy
+                              if ext in ('.html', '.json', '.xml', '.txt'):
                                   cache = 'no-cache, no-store, must-revalidate'
-                              elif ext in ('.js', '.css', '.woff', '.woff2', '.png', '.jpg', '.svg'):
+                              elif ext in ('.js', '.css', '.woff', '.woff2', '.png', '.jpg', '.jpeg', '.svg', '.ico', '.webp'):
                                   cache = 'public, max-age=31536000, immutable'
                               else:
                                   cache = 'public, max-age=86400'
+
+                              # Content-Type (critical - without this S3 serves octet-stream and browser downloads)
+                              content_type, _ = mimetypes.guess_type(s3_key)
+                              if not content_type:
+                                  content_type = 'application/octet-stream'
+
                               s3.upload_file(local_path, frontend_bucket, s3_key,
-                                             ExtraArgs={'CacheControl': cache})
+                                             ExtraArgs={
+                                                 'CacheControl': cache,
+                                                 'ContentType': content_type
+                                             })
 
                       # Delete files in bucket not in the new build
                       paginator = s3.get_paginator('list_objects_v2')
